@@ -27,6 +27,7 @@ Visit https://holywen.github.io/neon-shape-generator/
 | spotCount | 0 | 0-24 | Number of white glow spots on the ring |
 | spotSize | 4 | 1-60 | Spot size (visible when spotCount > 0) |
 | cornerRadius | 60 | 0-radius | Corner radius (roundRect, polygon, triangle) |
+| lang | zh | zh / en | UI language |
 | hide | - | - | Hide control panel |
 
 ## Examples
@@ -52,6 +53,9 @@ Visit https://holywen.github.io/neon-shape-generator/
 
 # Rounded triangle
 ?shape=triangle&cornerRadius=60&spotCount=6&spotSize=8&hide=1
+
+# English UI
+?shape=circle&lang=en&hide=1
 ```
 
 ## OBS Setup

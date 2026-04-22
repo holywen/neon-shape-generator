@@ -2,6 +2,49 @@ import React, { useState, useMemo, useRef } from 'react'
 
 const SHAPES = ['circle', 'square', 'roundRect', 'polygon', 'triangle']
 
+const I18N = {
+  en: {
+    title: 'Neon Generator',
+    shape: 'Shape',
+    sides: 'Sides',
+    corner: 'Corner',
+    radius: 'Radius',
+    glow: 'Glow',
+    speed: 'Speed',
+    stroke: 'Stroke',
+    core: 'Core',
+    spots: 'Spots',
+    spotSize: 'Spot Size',
+    color1: 'Color 1',
+    color2: 'Color 2',
+    copyUrl: 'Copy URL',
+    copied: 'Copied!',
+    downloadPng: 'Download PNG',
+    langSwitch: 'Language',
+    shapeNames: { circle: 'Circle', square: 'Square', roundRect: 'Round Rect', polygon: 'Polygon', triangle: 'Triangle' }
+  },
+  zh: {
+    title: '霓虹生成器',
+    shape: '形状',
+    sides: '边数',
+    corner: '圆角',
+    radius: '半径',
+    glow: '发光',
+    speed: '速度',
+    stroke: '描边',
+    core: '核心',
+    spots: '亮点',
+    spotSize: '亮点大小',
+    color1: '颜色1',
+    color2: '颜色2',
+    copyUrl: '复制链接',
+    copied: '已复制!',
+    downloadPng: '下载PNG',
+    langSwitch: '语言',
+    shapeNames: { circle: '圆形', square: '方形', roundRect: '圆角矩形', polygon: '多边形', triangle: '三角形' }
+  }
+}
+
 function getRoundRectPoint(p, cx, cy, s, r) {
   const segLen = 2 * s - 2 * r
   const arcLen = Math.PI * r / 2
@@ -117,7 +160,8 @@ function App() {
     color2: '#00e5ff',
     spotCount: 0,
     spotSize: 4,
-    cornerRadius: 60
+    cornerRadius: 60,
+    lang: 'zh'
   }
 
   const [copied, setCopied] = useState(false)
@@ -137,8 +181,14 @@ function App() {
     if (params.get('spotCount')) cfg.spotCount = parseInt(params.get('spotCount'))
     if (params.get('spotSize')) cfg.spotSize = parseInt(params.get('spotSize'))
     if (params.get('cornerRadius')) cfg.cornerRadius = parseInt(params.get('cornerRadius'))
+    if (params.get('lang')) cfg.lang = params.get('lang')
     return cfg
   })
+
+  const t = (key) => {
+    const dict = I18N[config.lang] || I18N.zh
+    return dict[key] || key
+  }
 
   const updateConfig = (key, value) => {
     setConfig(prev => ({ ...prev, [key]: value }))
@@ -213,9 +263,21 @@ function App() {
     <div style={{...styles.container, background: showPanel ? '#0a0a0f' : 'transparent'}}>
       {showPanel && (
         <div style={styles.panel}>
-          <h1 style={styles.title}>Neon Generator</h1>
+          <div style={styles.header}>
+            <h1 style={styles.title}>{t('title')}</h1>
+            <div style={styles.langSwitch}>
+              <button
+                style={{...styles.langBtn, ...(config.lang === 'zh' ? styles.langBtnActive : {})}}
+                onClick={() => updateConfig('lang', 'zh')}
+              >中</button>
+              <button
+                style={{...styles.langBtn, ...(config.lang === 'en' ? styles.langBtnActive : {})}}
+                onClick={() => updateConfig('lang', 'en')}
+              >EN</button>
+            </div>
+          </div>
           <div style={styles.group}>
-            <label style={styles.label}>Shape</label>
+            <label style={styles.label}>{t('shape')}</label>
             <div style={styles.grid}>
               {SHAPES.map(s => (
                 <button
@@ -223,70 +285,70 @@ function App() {
                   style={{...styles.btn, ...(config.shape === s ? styles.btnActive : {})}}
                   onClick={() => updateConfig('shape', s)}
                 >
-                  {s}
+                  {t('shapeNames')[s] || s}
                 </button>
               ))}
             </div>
           </div>
           {config.shape === 'polygon' && (
             <div style={styles.group}>
-              <label style={styles.label}>Sides <span>{config.sides}</span></label>
+              <label style={styles.label}>{t('sides')} <span>{config.sides}</span></label>
               <input type="range" min="3" max="12" value={config.sides}
                 onChange={e => updateConfig('sides', +e.target.value)} style={styles.slider} />
             </div>
           )}
           {['roundRect', 'polygon', 'triangle'].includes(config.shape) && (
             <div style={styles.group}>
-              <label style={styles.label}>Corner <span>{config.cornerRadius}</span></label>
+              <label style={styles.label}>{t('corner')} <span>{config.cornerRadius}</span></label>
               <input type="range" min="0" max={config.radius} value={Math.min(config.cornerRadius, config.radius)}
                 onChange={e => updateConfig('cornerRadius', +e.target.value)} style={styles.slider} />
             </div>
           )}
           <div style={styles.group}>
-            <label style={styles.label}>Radius <span>{config.radius}</span></label>
+            <label style={styles.label}>{t('radius')} <span>{config.radius}</span></label>
             <input type="range" min="50" max="600" value={config.radius}
               onChange={e => updateConfig('radius', +e.target.value)} style={styles.slider} />
           </div>
           <div style={styles.group}>
-            <label style={styles.label}>Glow <span>{config.glow}</span></label>
+            <label style={styles.label}>{t('glow')} <span>{config.glow}</span></label>
             <input type="range" min="10" max="80" value={config.glow}
               onChange={e => updateConfig('glow', +e.target.value)} style={styles.slider} />
           </div>
           <div style={styles.group}>
-            <label style={styles.label}>Speed <span>{config.speed.toFixed(1)}</span></label>
+            <label style={styles.label}>{t('speed')} <span>{config.speed.toFixed(1)}</span></label>
             <input type="range" min="0" max="3" step="0.1" value={config.speed}
               onChange={e => updateConfig('speed', +e.target.value)} style={styles.slider} />
           </div>
           <div style={styles.group}>
-            <label style={styles.label}>Stroke <span>{config.strokeWidth}</span></label>
+            <label style={styles.label}>{t('stroke')} <span>{config.strokeWidth}</span></label>
             <input type="range" min="1" max="40" value={config.strokeWidth}
               onChange={e => updateConfig('strokeWidth', +e.target.value)} style={styles.slider} />
           </div>
           <div style={styles.group}>
-            <label style={styles.label}>Core <span>{config.coreWidth}</span></label>
+            <label style={styles.label}>{t('core')} <span>{config.coreWidth}</span></label>
             <input type="range" min="0" max="20" value={config.coreWidth}
               onChange={e => updateConfig('coreWidth', +e.target.value)} style={styles.slider} />
           </div>
           <div style={styles.group}>
-            <label style={styles.label}>Spots <span>{config.spotCount}</span></label>
+            <label style={styles.label}>{t('spots')} <span>{config.spotCount}</span></label>
             <input type="range" min="0" max="24" value={config.spotCount}
               onChange={e => updateConfig('spotCount', +e.target.value)} style={styles.slider} />
           </div>
           {config.spotCount > 0 && (
             <div style={styles.group}>
-              <label style={styles.label}>Spot Size <span>{config.spotSize}</span></label>
+              <label style={styles.label}>{t('spotSize')} <span>{config.spotSize}</span></label>
               <input type="range" min="1" max="60" value={config.spotSize}
                 onChange={e => updateConfig('spotSize', +e.target.value)} style={styles.slider} />
             </div>
           )}
-          
+
           <div style={styles.group}>
-            <label style={styles.label}>Color 1</label>
+            <label style={styles.label}>{t('color1')}</label>
             <input type="color" value={config.color1}
               onChange={e => updateConfig('color1', e.target.value)} style={styles.color} />
           </div>
           <div style={styles.group}>
-            <label style={styles.label}>Color 2</label>
+            <label style={styles.label}>{t('color2')}</label>
             <input type="color" value={config.color2}
               onChange={e => updateConfig('color2', e.target.value)} style={styles.color} />
           </div>
@@ -304,12 +366,13 @@ function App() {
               url.searchParams.set('spotCount', config.spotCount)
               if (config.spotCount > 0) url.searchParams.set('spotSize', config.spotSize)
               if (config.shape === 'polygon') url.searchParams.set('sides', config.sides)
-              if (config.shape === 'roundRect') url.searchParams.set('cornerRadius', config.cornerRadius)
+              if (['roundRect', 'polygon', 'triangle'].includes(config.shape)) url.searchParams.set('cornerRadius', config.cornerRadius)
+              url.searchParams.set('lang', config.lang)
               url.searchParams.set('hide', '1')
               navigator.clipboard.writeText(url.toString())
               setCopied(true)
               setTimeout(() => setCopied(false), 2000)
-            }}>{copied ? 'Copied!' : 'Copy URL'}</button>
+            }}>{copied ? t('copied') : t('copyUrl')}</button>
           </div>
           <div style={styles.group}>
             <button style={styles.copyBtn} onClick={() => {
@@ -328,7 +391,7 @@ function App() {
                 a.click()
               }
               img.src = 'data:image/svg+xml;base64,' + btoa(data)
-            }}>Download PNG</button>
+            }}>{t('downloadPng')}</button>
           </div>
         </div>
       )}
@@ -380,9 +443,16 @@ const styles = {
   container: { display: 'flex', width: '100vw', height: '100vh', background: '#0a0a0f' },
   panel: { width: 260, background: 'rgba(0,0,0,0.95)', padding: 20, display: 'flex', flexDirection: 'column', gap: 16,
     borderRight: '1px solid rgba(255,255,255,0.1)', overflowY: 'auto' },
-  title: { fontSize: 20, fontWeight: 600, marginBottom: 8,
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  title: { fontSize: 20, fontWeight: 600, margin: 0,
     background: 'linear-gradient(135deg, #ff00ff, #00e5ff)',
     WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+  langSwitch: { display: 'flex', gap: 4 },
+  langBtn: { padding: '4px 8px', fontSize: 11, background: 'rgba(255,255,255,0.05)',
+    border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, color: 'rgba(255,255,255,0.5)',
+    cursor: 'pointer', transition: 'all 0.2s' },
+  langBtnActive: { background: 'linear-gradient(135deg, rgba(255,0,255,0.3), rgba(0,229,255,0.3))',
+    borderColor: '#00e5ff', color: '#fff' },
   group: { display: 'flex', flexDirection: 'column', gap: 8 },
   label: { fontSize: 12, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 1,
     display: 'flex', justifyContent: 'space-between' },
