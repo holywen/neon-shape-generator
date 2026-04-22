@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Visit http://localhost:3000
+Visit https://holywen.github.io/neon-shape-generator/
 
 ## URL Parameters
 
@@ -20,7 +20,8 @@ Visit http://localhost:3000
 | radius | 300 | 50-600 | Ring radius |
 | glow | 40 | 10-80 | Glow intensity |
 | speed | 1 | 0-3 | Rotation speed (0 = no rotation) |
-| strokeWidth | 20 | 1-40 | Line width |
+| strokeWidth | 20 | 1-40 | Outer glow line width |
+| coreWidth | 3 | 0-20 | White core line width (0 = off) |
 | color1 | ff00ff | - | Start color (HEX) |
 | color2 | 00e5ff | - | End color (HEX) |
 | hide | - | - | Hide control panel |
@@ -29,13 +30,16 @@ Visit http://localhost:3000
 
 ```bash
 # Pentagon, large glow
-?shape=polygon&sides=5&glow=60&hide=1
+?shape=polygon&strokeWidth=30&sides=5&glow=60&hide=1
 
 # Triangle, fast rotation
-?shape=triangle&speed=2&hide=1
+?shape=triangle&strokeWidth=30&speed=2&hide=1
 
 # Circle, cyan glow
-?shape=circle&color1=00ffff&color2=0088ff&hide=1
+?shape=circle&strokeWidth=30&color1=00ffff&color2=0088ff&hide=1
+
+# Thick ring with bright core
+?shape=circle&strokeWidth=30&coreWidth=10&glow=50&hide=1
 ```
 
 ## OBS Setup

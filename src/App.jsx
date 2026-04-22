@@ -13,6 +13,7 @@ function App() {
     radius: 300,
     glow: 40,
     strokeWidth: 20,
+    coreWidth: 3,
     speed: 1,
     color1: '#ff00ff',
     color2: '#00e5ff'
@@ -29,6 +30,7 @@ function App() {
     if (params.get('glow')) cfg.glow = parseInt(params.get('glow'))
     if (params.get('speed')) cfg.speed = parseFloat(params.get('speed'))
     if (params.get('strokeWidth')) cfg.strokeWidth = parseInt(params.get('strokeWidth'))
+    if (params.get('coreWidth')) cfg.coreWidth = parseInt(params.get('coreWidth'))
     if (params.get('color1')) cfg.color1 = '#' + params.get('color1').replace('#', '')
     if (params.get('color2')) cfg.color2 = '#' + params.get('color2').replace('#', '')
     return cfg
@@ -121,6 +123,11 @@ function App() {
             <input type="range" min="1" max="40" value={config.strokeWidth}
               onChange={e => updateConfig('strokeWidth', +e.target.value)} style={styles.slider} />
           </div>
+          <div style={styles.group}>
+            <label style={styles.label}>Core <span>{config.coreWidth}</span></label>
+            <input type="range" min="0" max="20" value={config.coreWidth}
+              onChange={e => updateConfig('coreWidth', +e.target.value)} style={styles.slider} />
+          </div>
           
           <div style={styles.group}>
             <label style={styles.label}>Color 1</label>
@@ -140,6 +147,7 @@ function App() {
               url.searchParams.set('glow', config.glow)
               url.searchParams.set('speed', config.speed)
               url.searchParams.set('strokeWidth', config.strokeWidth)
+              url.searchParams.set('coreWidth', config.coreWidth)
               url.searchParams.set('color1', config.color1.replace('#', ''))
               url.searchParams.set('color2', config.color2.replace('#', ''))
               if (config.shape === 'polygon') url.searchParams.set('sides', config.sides)
@@ -188,6 +196,12 @@ function App() {
           </defs>
           <path d={pathData} fill="none" stroke={`url(#${glowFilter})`} strokeWidth={config.strokeWidth}
             strokeLinecap="round" strokeLinejoin="round" filter="url(#neonGlow)"
+            style={{
+              transformOrigin: '400px 400px',
+              animation: config.speed > 0 ? `spin ${10 / config.speed}s linear infinite` : 'none'
+            }} />
+          <path d={pathData} fill="none" stroke="white" strokeWidth={config.coreWidth}
+            strokeLinecap="round" strokeLinejoin="round" opacity="0.8"
             style={{
               transformOrigin: '400px 400px',
               animation: config.speed > 0 ? `spin ${10 / config.speed}s linear infinite` : 'none'
