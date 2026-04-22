@@ -1,6 +1,104 @@
 import React, { useState, useMemo, useRef } from 'react'
 
-const SHAPES = ['circle', 'square', 'polygon', 'triangle']
+const SHAPES = ['circle', 'square', 'roundRect', 'polygon', 'triangle']
+
+function getRoundRectPoint(p, cx, cy, s, r) {
+  const segLen = 2 * s - 2 * r
+  const arcLen = Math.PI * r / 2
+  const totalLen = 4 * segLen + 4 * arcLen
+  let d = ((p % 1) + 1) % 1 * totalLen
+  const segments = [
+    { type: 'line', len: segLen, x0: cx - s + r, y0: cy - s, dx: 1, dy: 0 },
+    { type: 'arc', len: arcLen, cx: cx + s - r, cy: cy - s + r, startAngle: -Math.PI / 2 },
+    { type: 'line', len: segLen, x0: cx + s, y0: cy - s + r, dx: 0, dy: 1 },
+    { type: 'arc', len: arcLen, cx: cx + s - r, cy: cy + s - r, startAngle: 0 },
+    { type: 'line', len: segLen, x0: cx + s - r, y0: cy + s, dx: -1, dy: 0 },
+    { type: 'arc', len: arcLen, cx: cx - s + r, cy: cy + s - r, startAngle: Math.PI / 2 },
+    { type: 'line', len: segLen, x0: cx - s, y0: cy + s - r, dx: 0, dy: -1 },
+    { type: 'arc', len: arcLen, cx: cx - s + r, cy: cy - s + r, startAngle: Math.PI },
+  ]
+  for (const seg of segments) {
+    if (d <= seg.len) {
+      if (seg.type === 'line') {
+        return { x: seg.x0 + seg.dx * d, y: seg.y0 + seg.dy * d }
+      } else {
+        const angle = seg.startAngle + (d / r)
+        return { x: seg.cx + Math.cos(angle) * r, y: seg.cy + Math.sin(angle) * r }
+      }
+    }
+    d -= seg.len
+  }
+  return { x: cx - s + r, y: cy - s }
+}
+
+function getRoundPolygonPoint(p, cx, cy, radius, n, R) {
+  const a0 = -Math.PI / 2
+  const maxR = radius * Math.cos(Math.PI / n)
+  const r = Math.min(R, maxR)
+
+  if (r <= 0 || n < 3) {
+    const idx = Math.floor(p * n), next = (idx + 1) % n
+    const a1 = (idx / n) * 2 * Math.PI + a0
+    const a2 = (next / n) * 2 * Math.PI + a0
+    const t = (p * n) % 1
+    const x1 = cx + Math.cos(a1) * radius, y1 = cy + Math.sin(a1) * radius
+    const x2 = cx + Math.cos(a2) * radius, y2 = cy + Math.sin(a2) * radius
+    return { x: x1 + (x2 - x1) * t, y: y1 + (y2 - y1) * t }
+  }
+
+  const sideLen = 2 * radius * Math.sin(Math.PI / n)
+  const d = r * Math.tan(Math.PI / n)
+  const arcLen = r * 2 * Math.PI / n
+  const segLen = Math.max(0, sideLen - 2 * d)
+  const cycleLen = segLen + arcLen
+  const totalLen = n * cycleLen
+
+  let dist = ((p % 1) + 1) % 1 * totalLen
+  const idx = Math.floor(dist / cycleLen)
+  dist -= idx * cycleLen
+
+  const i = idx
+  const ai = (i / n) * 2 * Math.PI + a0
+  const ai1 = (((i + 1) % n) / n) * 2 * Math.PI + a0
+  const Vi = { x: cx + Math.cos(ai) * radius, y: cy + Math.sin(ai) * radius }
+  const Vi1 = { x: cx + Math.cos(ai1) * radius, y: cy + Math.sin(ai1) * radius }
+
+  const dir = { x: Vi1.x - Vi.x, y: Vi1.y - Vi.y }
+  const dirLen = Math.sqrt(dir.x * dir.x + dir.y * dir.y)
+  dir.x /= dirLen; dir.y /= dirLen
+
+  if (dist < segLen) {
+    const segStart = { x: Vi.x + d * dir.x, y: Vi.y + d * dir.y }
+    const segEnd = { x: Vi1.x - d * dir.x, y: Vi1.y - d * dir.y }
+    const t = segLen > 0 ? dist / segLen : 0
+    return { x: segStart.x + (segEnd.x - segStart.x) * t, y: segStart.y + (segEnd.y - segStart.y) * t }
+  } else {
+    const arcDist = dist - segLen
+    const t = arcLen > 0 ? arcDist / arcLen : 0
+
+    const h = r / Math.cos(Math.PI / n)
+    const Ci = { x: Vi1.x - Math.cos(ai1) * h, y: Vi1.y - Math.sin(ai1) * h }
+
+    const P_start = { x: Vi1.x - d * dir.x, y: Vi1.y - d * dir.y }
+
+    const ai2 = (((i + 2) % n) / n) * 2 * Math.PI + a0
+    const Vi2 = { x: cx + Math.cos(ai2) * radius, y: cy + Math.sin(ai2) * radius }
+    const dirNext = { x: Vi2.x - Vi1.x, y: Vi2.y - Vi1.y }
+    const dirNextLen = Math.sqrt(dirNext.x * dirNext.x + dirNext.y * dirNext.y)
+    dirNext.x /= dirNextLen; dirNext.y /= dirNextLen
+    const P_end = { x: Vi1.x + d * dirNext.x, y: Vi1.y + d * dirNext.y }
+
+    let theta_start = Math.atan2(P_start.y - Ci.y, P_start.x - Ci.x)
+    let theta_end = Math.atan2(P_end.y - Ci.y, P_end.x - Ci.x)
+
+    let delta = theta_end - theta_start
+    while (delta <= -Math.PI) delta += 2 * Math.PI
+    while (delta > Math.PI) delta -= 2 * Math.PI
+
+    const angle = theta_start + t * delta
+    return { x: Ci.x + Math.cos(angle) * r, y: Ci.y + Math.sin(angle) * r }
+  }
+}
 
 function App() {
   const params = new URLSearchParams(window.location.search)
@@ -18,7 +116,8 @@ function App() {
     color1: '#ff00ff',
     color2: '#00e5ff',
     spotCount: 0,
-    spotSize: 4
+    spotSize: 4,
+    cornerRadius: 60
   }
 
   const [copied, setCopied] = useState(false)
@@ -37,6 +136,7 @@ function App() {
     if (params.get('color2')) cfg.color2 = '#' + params.get('color2').replace('#', '')
     if (params.get('spotCount')) cfg.spotCount = parseInt(params.get('spotCount'))
     if (params.get('spotSize')) cfg.spotSize = parseInt(params.get('spotSize'))
+    if (params.get('cornerRadius')) cfg.cornerRadius = parseInt(params.get('cornerRadius'))
     return cfg
   })
 
@@ -45,7 +145,7 @@ function App() {
   }
 
   const pathData = useMemo(() => {
-    const { shape, sides, radius } = config
+    const { shape, sides, radius, cornerRadius } = config
     const cx = 400, cy = 400, count = 300
     const pts = []
     for (let i = 0; i < count; i++) {
@@ -60,17 +160,14 @@ function App() {
         else if (p < 0.5) { x = cx + s; y = cy - s + 4 * s * (p - 0.25); }
         else if (p < 0.75) { x = cx + s - 4 * s * (p - 0.5); y = cy + s; }
         else { x = cx - s; y = cy + s - 4 * s * (p - 0.75); }
+      } else if (shape === 'roundRect') {
+        const r = Math.min(cornerRadius, radius)
+        const pt = getRoundRectPoint(i / count, cx, cy, radius, r)
+        x = pt.x; y = pt.y
       } else if (shape === 'polygon' || shape === 'triangle') {
         const n = shape === 'triangle' ? 3 : sides
-        const segCount = count / n
-        const idx = Math.floor(i / segCount), next = (idx + 1) % n
-        const a1 = (idx / n) * 2 * Math.PI - Math.PI / 2
-        const a2 = (next / n) * 2 * Math.PI - Math.PI / 2
-        const p = (i % segCount) / segCount
-        const x1 = cx + Math.cos(a1) * radius, y1 = cy + Math.sin(a1) * radius
-        const x2 = cx + Math.cos(a2) * radius, y2 = cy + Math.sin(a2) * radius
-        x = x1 + (x2 - x1) * p
-        y = y1 + (y2 - y1) * p
+        const pt = getRoundPolygonPoint(i / count, cx, cy, radius, n, cornerRadius)
+        x = pt.x; y = pt.y
       }
       pts.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`)
     }
@@ -78,7 +175,7 @@ function App() {
 }, [config])
 
   const spotPositions = useMemo(() => {
-    const { shape, sides, radius, spotCount } = config
+    const { shape, sides, radius, spotCount, cornerRadius } = config
     if (spotCount <= 0) return []
     const cx = 400, cy = 400
     const pts = []
@@ -94,17 +191,14 @@ function App() {
         else if (p < 0.5) { x = cx + s; y = cy - s + 4 * s * (p - 0.25); }
         else if (p < 0.75) { x = cx + s - 4 * s * (p - 0.5); y = cy + s; }
         else { x = cx - s; y = cy + s - 4 * s * (p - 0.75); }
+      } else if (shape === 'roundRect') {
+        const r = Math.min(cornerRadius, radius)
+        const pt = getRoundRectPoint(i / spotCount, cx, cy, radius, r)
+        x = pt.x; y = pt.y
       } else if (shape === 'polygon' || shape === 'triangle') {
         const n = shape === 'triangle' ? 3 : sides
-        const segCount = spotCount / n
-        const idx = Math.floor(i / segCount), next = (idx + 1) % n
-        const a1 = (idx / n) * 2 * Math.PI - Math.PI / 2
-        const a2 = (next / n) * 2 * Math.PI - Math.PI / 2
-        const p = (i % segCount) / segCount
-        const x1 = cx + Math.cos(a1) * radius, y1 = cy + Math.sin(a1) * radius
-        const x2 = cx + Math.cos(a2) * radius, y2 = cy + Math.sin(a2) * radius
-        x = x1 + (x2 - x1) * p
-        y = y1 + (y2 - y1) * p
+        const pt = getRoundPolygonPoint(i / spotCount, cx, cy, radius, n, cornerRadius)
+        x = pt.x; y = pt.y
       }
       pts.push({ x, y })
     }
@@ -139,6 +233,13 @@ function App() {
               <label style={styles.label}>Sides <span>{config.sides}</span></label>
               <input type="range" min="3" max="12" value={config.sides}
                 onChange={e => updateConfig('sides', +e.target.value)} style={styles.slider} />
+            </div>
+          )}
+          {['roundRect', 'polygon', 'triangle'].includes(config.shape) && (
+            <div style={styles.group}>
+              <label style={styles.label}>Corner <span>{config.cornerRadius}</span></label>
+              <input type="range" min="0" max={config.radius} value={Math.min(config.cornerRadius, config.radius)}
+                onChange={e => updateConfig('cornerRadius', +e.target.value)} style={styles.slider} />
             </div>
           )}
           <div style={styles.group}>
@@ -203,6 +304,7 @@ function App() {
               url.searchParams.set('spotCount', config.spotCount)
               if (config.spotCount > 0) url.searchParams.set('spotSize', config.spotSize)
               if (config.shape === 'polygon') url.searchParams.set('sides', config.sides)
+              if (config.shape === 'roundRect') url.searchParams.set('cornerRadius', config.cornerRadius)
               url.searchParams.set('hide', '1')
               navigator.clipboard.writeText(url.toString())
               setCopied(true)
