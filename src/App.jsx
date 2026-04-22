@@ -16,7 +16,9 @@ function App() {
     coreWidth: 3,
     speed: 1,
     color1: '#ff00ff',
-    color2: '#00e5ff'
+    color2: '#00e5ff',
+    spotCount: 0,
+    spotSize: 4
   }
 
   const [copied, setCopied] = useState(false)
@@ -33,6 +35,8 @@ function App() {
     if (params.get('coreWidth')) cfg.coreWidth = parseInt(params.get('coreWidth'))
     if (params.get('color1')) cfg.color1 = '#' + params.get('color1').replace('#', '')
     if (params.get('color2')) cfg.color2 = '#' + params.get('color2').replace('#', '')
+    if (params.get('spotCount')) cfg.spotCount = parseInt(params.get('spotCount'))
+    if (params.get('spotSize')) cfg.spotSize = parseInt(params.get('spotSize'))
     return cfg
   })
 
@@ -72,6 +76,40 @@ function App() {
     }
     return pts.join(' ') + ' Z'
 }, [config])
+
+  const spotPositions = useMemo(() => {
+    const { shape, sides, radius, spotCount } = config
+    if (spotCount <= 0) return []
+    const cx = 400, cy = 400
+    const pts = []
+    for (let i = 0; i < spotCount; i++) {
+      const t = (i / spotCount) * 2 * Math.PI
+      let x, y
+      if (shape === 'circle') {
+        x = cx + Math.cos(t) * radius
+        y = cy + Math.sin(t) * radius
+      } else if (shape === 'square') {
+        const s = radius, p = i / spotCount
+        if (p < 0.25) { x = cx - s + 4 * s * p; y = cy - s; }
+        else if (p < 0.5) { x = cx + s; y = cy - s + 4 * s * (p - 0.25); }
+        else if (p < 0.75) { x = cx + s - 4 * s * (p - 0.5); y = cy + s; }
+        else { x = cx - s; y = cy + s - 4 * s * (p - 0.75); }
+      } else if (shape === 'polygon' || shape === 'triangle') {
+        const n = shape === 'triangle' ? 3 : sides
+        const segCount = spotCount / n
+        const idx = Math.floor(i / segCount), next = (idx + 1) % n
+        const a1 = (idx / n) * 2 * Math.PI - Math.PI / 2
+        const a2 = (next / n) * 2 * Math.PI - Math.PI / 2
+        const p = (i % segCount) / segCount
+        const x1 = cx + Math.cos(a1) * radius, y1 = cy + Math.sin(a1) * radius
+        const x2 = cx + Math.cos(a2) * radius, y2 = cy + Math.sin(a2) * radius
+        x = x1 + (x2 - x1) * p
+        y = y1 + (y2 - y1) * p
+      }
+      pts.push({ x, y })
+    }
+    return pts
+  }, [config])
 
   const glowFilter = useMemo(() => `glow-${Date.now()}`, [])
 
@@ -128,6 +166,18 @@ function App() {
             <input type="range" min="0" max="20" value={config.coreWidth}
               onChange={e => updateConfig('coreWidth', +e.target.value)} style={styles.slider} />
           </div>
+          <div style={styles.group}>
+            <label style={styles.label}>Spots <span>{config.spotCount}</span></label>
+            <input type="range" min="0" max="24" value={config.spotCount}
+              onChange={e => updateConfig('spotCount', +e.target.value)} style={styles.slider} />
+          </div>
+          {config.spotCount > 0 && (
+            <div style={styles.group}>
+              <label style={styles.label}>Spot Size <span>{config.spotSize}</span></label>
+              <input type="range" min="1" max="60" value={config.spotSize}
+                onChange={e => updateConfig('spotSize', +e.target.value)} style={styles.slider} />
+            </div>
+          )}
           
           <div style={styles.group}>
             <label style={styles.label}>Color 1</label>
@@ -150,6 +200,8 @@ function App() {
               url.searchParams.set('coreWidth', config.coreWidth)
               url.searchParams.set('color1', config.color1.replace('#', ''))
               url.searchParams.set('color2', config.color2.replace('#', ''))
+              url.searchParams.set('spotCount', config.spotCount)
+              if (config.spotCount > 0) url.searchParams.set('spotSize', config.spotSize)
               if (config.shape === 'polygon') url.searchParams.set('sides', config.sides)
               url.searchParams.set('hide', '1')
               navigator.clipboard.writeText(url.toString())
@@ -193,19 +245,29 @@ function App() {
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
+            <radialGradient id="spotGlow">
+              <stop offset="0%" stopColor="white" stopOpacity="0.6" />
+              <stop offset="50%" stopColor="white" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="white" stopOpacity="0" />
+            </radialGradient>
           </defs>
-          <path d={pathData} fill="none" stroke={`url(#${glowFilter})`} strokeWidth={config.strokeWidth}
-            strokeLinecap="round" strokeLinejoin="round" filter="url(#neonGlow)"
-            style={{
-              transformOrigin: '400px 400px',
-              animation: config.speed > 0 ? `spin ${10 / config.speed}s linear infinite` : 'none'
-            }} />
-          <path d={pathData} fill="none" stroke="white" strokeWidth={config.coreWidth}
-            strokeLinecap="round" strokeLinejoin="round" opacity="0.8"
-            style={{
-              transformOrigin: '400px 400px',
-              animation: config.speed > 0 ? `spin ${10 / config.speed}s linear infinite` : 'none'
-            }} />
+          <g style={{
+            transformOrigin: '400px 400px',
+            animation: config.speed > 0 ? `spin ${10 / config.speed}s linear infinite` : 'none'
+          }}>
+            <path d={pathData} fill="none" stroke={`url(#${glowFilter})`} strokeWidth={config.strokeWidth}
+              strokeLinecap="round" strokeLinejoin="round" filter="url(#neonGlow)" />
+            <path d={pathData} fill="none" stroke="white" strokeWidth={config.coreWidth}
+              strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
+            {config.spotCount > 0 && spotPositions.map((pos, i) => (
+              <g key={i}>
+                <circle cx={pos.x} cy={pos.y} r={config.spotSize * 2}
+                  fill="url(#spotGlow)" />
+                <circle cx={pos.x} cy={pos.y} r={config.spotSize * 0.4}
+                  fill="white" opacity="0.95" />
+              </g>
+            ))}
+          </g>
         </svg>
       </div>
     </div>
